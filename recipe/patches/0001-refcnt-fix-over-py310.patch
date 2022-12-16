@@ -1,0 +1,39 @@
+From e889874a08a5ce789b2c900f2aa84d2230a27f74 Mon Sep 17 00:00:00 2001
+From: =?UTF-8?q?Bj=C3=B8rn=20Forsman?= <bjorn.forsman@gmail.com>
+Date: Fri, 1 Jul 2022 20:04:49 +0200
+Subject: [PATCH] Fix building against python-3.10
+MIME-Version: 1.0
+Content-Type: text/plain; charset=UTF-8
+Content-Transfer-Encoding: 8bit
+
+Specifically this build error:
+
+  In file included from src/pyuv.c:8:
+  src/handle.c: In function ‘resurrect_object’:
+  src/handle.c:17:21: error: lvalue required as left operand of assignment
+     17 |     Py_REFCNT(self) = refcnt;
+        |                     ^
+
+Fixes https://github.com/saghul/pyuv/issues/271.
+
+Co-authored-by: @polkovnikov
+---
+ src/handle.c | 4 ++++
+ 1 file changed, 4 insertions(+)
+
+diff --git a/src/handle.c b/src/handle.c
+index fa308e26..c43b602e 100644
+--- a/src/handle.c
++++ b/src/handle.c
+@@ -14,7 +14,11 @@ resurrect_object(PyObject *self)
+     Py_ssize_t refcnt = Py_REFCNT(self);
+     ASSERT(Py_REFCNT(self) != 0);
+     _Py_NewReference(self);
++#if PY_MAJOR_VERSION >= 3 && PY_MINOR_VERSION >= 10
++    Py_SET_REFCNT(self, refcnt);
++#else
+     Py_REFCNT(self) = refcnt;
++#endif
+     /* If Py_REF_DEBUG, _Py_NewReference bumped _Py_RefTotal, so
+      * we need to undo that. */
+ #ifdef _Py_DEC_REFTOTAL
